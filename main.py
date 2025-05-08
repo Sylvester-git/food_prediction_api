@@ -1,18 +1,22 @@
-from flask import Flask, request, jsonify
-from supabase import create_client
+from fastapi import FastAPI, HTTPException
+from supabase import create_client, Client
 import pandas as pd
+from dotenv import load_dotenv
 import random
 import os
+from typing import Optional
 
-app = Flask(__name__)
+load_dotenv()
+
+app = FastAPI()
 
 # Initialize Supabase client
-SUPABASE_URL = os.getenv("SUPABASE_URL", "your-supabase-url")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "your-supabase-key")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Define the meal-type columns
-food_cols = ['mptd', 'mps', 'mpfm', 'mpsw', 'mpdk', 'mpft']
+food_cols = ['mpfd', 'mps', 'mpfm', 'mpsw', 'mpdk', 'mpft']
 
 # Fetch data from Supabase and compute popularity
 def load_and_process_data():
@@ -59,28 +63,23 @@ def recommend_for_user(user_id, top_k=10):
     return recs
 
 
-# Flask endpoint
-@app.route('/recommend/<int:user_id>', methods=['GET'])
-def get_recommendations(user_id):
+# FastAPI endpoint
+@app.get("/recommend/{user_id}")
+async def get_recommendations(user_id: int, top_k: Optional[int] = 10):
     try:
-        # Get top_k from query parameter, default to 10
-        top_k = int(request.args.get('top_k', 10))
-        
         # Generate recommendations
         recommendations = recommend_for_user(user_id, top_k)
         
         # Return JSON response
-        return jsonify({
+        return {
             "user_id": user_id,
             "recommendations": recommendations,
             "status": "success"
-        }), 200
+        }
     
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "status": "error"
-        }), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
