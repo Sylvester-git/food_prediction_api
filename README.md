@@ -9,6 +9,25 @@ This project is a FastAPI-based web service that provides personalized food reco
 - **Supabase Integration:** Fetches and processes data from a Supabase table.
 - **REST API:** Exposes a `/recommend/{user_id}` endpoint for fetching recommendations.
 
+## CSV/Data Structure
+
+The data is expected to have the following columns:
+
+| vendor       | mpfd | mps | mpfm | mpsw | mpdk | mpft     | customerid |
+|--------------|------|-----|------|------|------|----------|------------|
+| BOLE WOMAN   | Rice | Plantain| Jollof Rice | Amala | Fante | Tigernut | 15232      |
+
+**Column meanings:**
+
+- `vendor`: Name of the food vendor.
+- `mpfd`: Most preferred dish.
+- `mps`: Most preferred supplement.
+- `mpfm`: Most preferred meal.
+- `mpsw`: Most preferred swallow.
+- `mpdk`: Most preferred drink.
+- `mpft`: Most preferred fruit.
+- `customerid`: Unique identifier for the customer.
+
 ## Project Structure
 
 - `main.py`: Main application code (FastAPI app, data loading, recommendation logic).
