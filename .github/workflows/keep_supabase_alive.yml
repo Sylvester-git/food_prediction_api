@@ -5,6 +5,8 @@ on:
     - cron: "*/1 * * * *"  # Every 6 hours at 00:00, 06:00, 12:00, 18:00
   workflow_dispatch:
 
+
+    
 jobs:
   ping:
     runs-on: ubuntu-latest
