@@ -1,56 +1,105 @@
 # Food Prediction API
 
-This project is a FastAPI-based web service that provides personalized food recommendations for users based on their past orders. It connects to a Supabase database to fetch historical food order data and uses this data to recommend popular food items that the user hasn't tried yet.
+This project is a FastAPI-based web service that provides personalized food recommendations for users based on their preferences. It connects to a Supabase database to fetch food and user data, and uses this data to recommend food combos the user hasn't tried yet.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Data Structure](#data-structure)
+- [Project Structure](#project-structure)
+- [How It Works (Step by Step)](#how-it-works-step-by-step)
+  - [1. User Authentication](#1-user-authentication)
+  - [2. Food Recommendation Logic](#2-food-recommendation-logic)
+  - [3. API Endpoints](#3-api-endpoints)
+- [Example Usage](#example-usage)
+- [Environment Variables](#environment-variables)
+- [Dependencies](#dependencies)
+
+---
 
 ## Features
 
-- **Personalized Recommendations:** For each meal type, the API recommends a popular food item the user hasn't ordered before.
-- **Popularity-Based:** Recommendations are chosen from the top-k most popular items for each meal type.
-- **Supabase Integration:** Fetches and processes data from a Supabase table.
-- **REST API:** Exposes a `/recommend/{user_id}` endpoint for fetching recommendations.
+- **User Signup/Login:** Secure authentication using JWT tokens.
+- **Personalized Recommendations:** Suggests food combos based on user preferences and popular items.
+- **Supabase Integration:** Fetches and processes data from Supabase tables.
+- **REST API:** Endpoints for signup, login, fetching foods, and getting recommendations.
 
-## CSV/Data Structure
+---
 
-The data is expected to have the following columns:
+## Data Structure
 
-| vendor       | mpfd | mps | mpfm | mpsw | mpdk | mpft     | customerid |
-|--------------|------|-----|------|------|------|----------|------------|
-| BOLE WOMAN   | Rice | Plantain| Jollof Rice | Amala | Fante | Tigernut | 15232      |
+The main tables used are:
 
-**Column meanings:**
+- `food_items`: List of foods, with fields like `id`, `name`, `category_id`, and flags like `is_rice`, `is_swallow`, etc.
+- `food_category`: Food categories (e.g., Protein, Soup, Fruits).
+- `user_food_preference`: Stores which foods a user likes.
+- `users`: Managed by Supabase Auth.
 
-- `vendor`: Name of the food vendor.
-- `mpfd`: Most preferred dish.
-- `mps`: Most preferred supplement.
-- `mpfm`: Most preferred meal.
-- `mpsw`: Most preferred swallow.
-- `mpdk`: Most preferred drink.
-- `mpft`: Most preferred fruit.
-- `customerid`: Unique identifier for the customer.
+---
 
 ## Project Structure
 
-- `main.py`: Main application code (FastAPI app, data loading, recommendation logic).
-- `.env`: Stores environment variables (Supabase credentials).
-- `makefile`: Contains a command to run the API locally.
-- `.gitignore`: Ignores `.env` file.
+- `main.py`: Main FastAPI app, authentication, and recommendation logic.
+- `model.py`: Pydantic models for request validation.
+- `.env`: Environment variables (Supabase credentials, JWT secret).
+- `README.md`: Project documentation.
 
-## How It Works
+---
 
-1. **Startup:**
-   - Loads environment variables from `.env`.
-   - Connects to Supabase using credentials.
-   - Fetches all data from the `food_prediction_data` table.
-   - Computes the most popular items for each meal type.
+## How It Works (Step by Step)
 
-2. **Recommendation Logic:**
-   - For a given user, finds all foods they've already ordered for each meal type.
-   - For each meal type, selects the top-k most popular items the user hasn't tried.
-   - Randomly picks one item from these as the recommendation for that meal type.
+### 1. User Authentication
 
-3. **API Endpoint:**
-   - `GET /recommend/{user_id}?top_k=10`
-   - Returns a JSON object with recommendations for each meal type.
+- **Signup (`/signup`):**
+  - User provides email, password, and a list of liked food IDs.
+  - Registers user with Supabase Auth.
+  - Saves liked foods in `user_food_preference`.
+
+- **Login (`/login`):**
+  - User provides email and password.
+  - If credentials are valid, returns a JWT token for authentication.
+
+- **JWT Token:**
+  - Used to protect endpoints (like `/recommend`).
+  - Token contains user ID and expiry.
+
+### 2. Food Recommendation Logic
+
+- **Fetching Preferences:**
+  - For the authenticated user, fetches their liked food IDs.
+
+- **Fetching Food Items:**
+  - Loads all food items and categories from Supabase.
+
+- **Grouping Foods:**
+  - Foods are grouped by type using flags (`is_rice`, `is_swallow`, `is_fry`) or by category (Protein, Soup, Fruits, etc.).
+
+- **Building Combos:**
+  - **Rice Combo:** Random rice, two proteins, drink, and stew if available.
+  - **Swallow Combo:** Swallow, soup, and a protein.
+  - **Fried Combo:** Fried food, drink, and fruit.
+  - **Extras:** Fills up to 5 combos with fast food items not already recommended.
+
+- **Result:**
+  - Returns up to 5 recommended combos, each as a list of food names.
+
+### 3. API Endpoints
+
+- `POST /signup`  
+  Registers a new user and saves their food preferences.
+
+- `POST /login`  
+  Authenticates a user and returns a JWT token.
+
+- `GET /foods`  
+  Returns all food items and categories.
+
+- `GET /recommend`  
+  Returns up to 5 personalized food combos for the authenticated user.
+
+---
 
 ## Example Usage
 
@@ -60,31 +109,62 @@ Start the API locally:
 make run-local
 ```
 
-Example response:
+**Signup Example:**
 
 ```json
+POST /signup
 {
-  "user_id": 123,
-  "recommendations": {
-    "mpfd": "Pizza",
-    "mps": "Salad",
-    "mpfm": "Burger",
-    "mpsw": null,
-    "mpdk": "Sushi",
-    "mpft": "Pasta"
-  },
-  "status": "success"
+  "email": "user@example.com",
+  "password": "securepassword",
+  "liked_food_ids": ["1", "2", "3"]
 }
 ```
 
+**Login Example:**
+
+```json
+POST /login
+{
+  "email": "user@example.com",
+  "password": "securepassword"
+}
+```
+
+**Get Recommendations:**
+
+```http
+GET /recommend
+Authorization: Bearer <your_jwt_token>
+```
+
+**Example response:**
+
+```json
+{
+  "recommendations": [
+    {"type": "Rice Combo", "Items": ["Jollof Rice", "Chicken", "Fish", "Stew", "Smoothie"]},
+    {"type": "Swallow Combo", "Items": ["Amala", "Egusi", "Meat"]},
+    {"type": "Fried combo", "Items": ["Fried Yam", "Smoothie", "Banana"]},
+    {"type": "Extra", "Items": ["Burger"]},
+    {"type": "Extra", "Items": ["Pizza"]}
+  ]
+}
+```
+
+---
+
 ## Environment Variables
 
-Create a .env file with the following variables:
+Create a `.env` file with:
 
 ```plaintext
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
+JWT_SECRET=your_jwt_secret
+JWT_EXP_TIME=86400
 ```
+
+---
 
 ## Dependencies
 
@@ -93,5 +173,42 @@ SUPABASE_KEY=your_supabase_key
 - supabase
 - pandas
 - python-dotenv
+- bcrypt
+- pyjwt
 
-pip install fastapi uvicorn supabase pandas python-dotenv
+Install with:
+
+```sh
+pip install fastapi uvicorn supabase pandas python-dotenv bcrypt pyjwt
+```
+
+---
+
+## Code Reference
+
+### model.py
+
+```python
+from pydantic import BaseModel
+from typing import List
+
+class UserSignUp(BaseModel):
+    email: str
+    password: str
+    liked_food_ids: List[str]
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+```
+
+### main.py (Key Parts)
+
+- **Authentication:** Uses bcrypt for password hashing and JWT for tokens.
+- **Supabase:** Connects using credentials from `.env`.
+- **Recommendation:** Groups foods, builds combos, and returns up to 5 recommendations.
+- **Endpoints:** `/signup`, `/login`, `/foods`, `/recommend` (JWT protected).
+
+---
+
+For more details, see the code in `main.py` and
